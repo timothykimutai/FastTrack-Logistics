@@ -35,6 +35,7 @@ delay_slider = st.sidebar.slider("Delivery Delay (hr)", float(data['Delivery_Del
 
 # Filter data
 df = data.copy()
+df['Order_ID'] = df['Order_ID'].astype(str)
 if region_filter:
     df = df[df['Region'].isin(region_filter)]
 if courier_filter:
@@ -101,7 +102,10 @@ with tab1:
         model.fit(X_train, y_train)
         y_pred = model.predict(X_test)
         st.write(f"MAE: {mean_absolute_error(y_test, y_pred):.2f}")
-        st.write(f"RMSE: {mean_squared_error(y_test, y_pred, squared=False):.2f}")
+        # Fix for TypeError: got an unexpected keyword argument 'squared'
+        mse = mean_squared_error(y_test, y_pred)
+        rmse = mse ** 0.5
+        st.write(f"RMSE: {rmse:.2f}")
         st.write(f"R2 Score: {r2_score(y_test, y_pred):.2f}")
         st.write("Feature Importances:")
         importances = pd.Series(model.feature_importances_, index=features)
@@ -124,8 +128,8 @@ with tab1:
         pred_outliers = df[df['Predicted_Delay'] > custom_pred_threshold]
         if not pred_outliers.empty:
             st.warning(f"{pred_outliers.shape[0]} orders predicted to exceed {custom_pred_threshold:.2f} hr delay.")
-            st.dataframe(pred_outliers[["Order_ID","Customer_ID","Region","Courier_Name","Predicted_Delay"]].style.applymap(lambda v: 'background-color: #ffe6e6' if isinstance(v, float) and v > custom_pred_threshold else ''))
-            st.markdown(get_table_download_link(pred_outliers), unsafe_allow_html=True)
+        st.dataframe(pred_outliers[["Order_ID","Customer_ID","Region","Courier_Name","Predicted_Delay"]].style.map(lambda v: 'background-color: #ffe6e6' if isinstance(v, float) and v > custom_pred_threshold else ''))
+        st.markdown(get_table_download_link(pred_outliers), unsafe_allow_html=True)
     else:
         st.info("Not enough data for predictive modeling.")
 
@@ -147,7 +151,7 @@ with tab1:
     outlier_df = df[df['Delivery_Delay_hr'] > outlier_threshold]
     if not outlier_df.empty:
         st.warning(f"{outlier_df.shape[0]} orders have delivery delay above {outlier_threshold:.2f} hr.")
-        st.dataframe(outlier_df[['Order_ID','Customer_ID','Region','Courier_Name','Delivery_Delay_hr','Fuel_Cost']].style.applymap(lambda v: 'background-color: #ffcccc' if isinstance(v, float) and v > outlier_threshold else ''))
+        st.dataframe(outlier_df[['Order_ID','Customer_ID','Region','Courier_Name','Delivery_Delay_hr','Fuel_Cost']].style.map(lambda v: 'background-color: #ffcccc' if isinstance(v, float) and v > outlier_threshold else ''))
         # Export outliers
         st.markdown(get_table_download_link(outlier_df), unsafe_allow_html=True)
         st.markdown(get_excel_download_link(outlier_df), unsafe_allow_html=True)
@@ -211,10 +215,10 @@ with tab2:
         'Fuel_Cost': 'sum',
         'Delivery_Status': lambda x: (x=='On Time').mean()*100
     }).reset_index().rename(columns={'Order_ID':'Total Orders','Delivery_Status':'On-Time %'})
-    fig_map = px.scatter_mapbox(
+    fig_map = px.scatter_map(
         map_df, lat="Latitude", lon="Longitude", size="Total Orders", color="On-Time %",
         hover_name="Region", hover_data=["Total Orders", "On-Time %", "Delivery_Delay_hr", "Fuel_Cost"],
-        color_continuous_scale="Viridis", size_max=40, zoom=3, mapbox_style="carto-positron",
+        color_continuous_scale="Viridis", size_max=40, zoom=3, map_style="carto-positron",
         title="Region Performance Map"
     )
     st.plotly_chart(fig_map, use_container_width=True)
@@ -235,7 +239,7 @@ with tab3:
     st.dataframe(courier_df)
     st.markdown("---")
     st.subheader("Interactive Data Table")
-    st.dataframe(df.style.applymap(lambda v: 'background-color: #e6f7ff' if isinstance(v, float) and v == df['Delivery_Delay_hr'].max() else ''))
+    st.dataframe(df.style.map(lambda v: 'background-color: #e6f7ff' if isinstance(v, float) and v == df['Delivery_Delay_hr'].max() else ''))
 
 with tab4:
     st.subheader("Recommendations & Insights")
