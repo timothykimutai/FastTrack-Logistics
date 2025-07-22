@@ -1,0 +1,9 @@
+streamlit
+pandas
+plotly
+scikit-learn
+matplotlib
+seaborn
+statsmodels
+xlsxwriter
+shap
